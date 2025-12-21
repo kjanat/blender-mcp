@@ -56,7 +56,7 @@ class BlenderMCPServer:
 
     def start(self) -> None:
         if self.running:
-            logger.info("Server is already running")
+            print("Server is already running")  # noqa: T201
             return
 
         self.running = True
@@ -73,9 +73,9 @@ class BlenderMCPServer:
             self.server_thread.daemon = True
             self.server_thread.start()
 
-            logger.info(f"BlenderMCP server started on {self.host}:{self.port}")
+            print(f"BlenderMCP server started on {self.host}:{self.port}")  # noqa: T201
         except Exception as e:
-            logger.info(f"Failed to start server: {str(e)}")
+            print(f"Failed to start server: {str(e)}")  # noqa: T201
             self.stop()
 
     def stop(self) -> None:
@@ -98,7 +98,7 @@ class BlenderMCPServer:
                 logger.debug(f"Failed to join thread: {str(e)}")
             self.server_thread = None
 
-        logger.info("BlenderMCP server stopped")
+        print("BlenderMCP server stopped")  # noqa: T201
 
     def _server_loop(self) -> None:
         """Main server loop in a separate thread"""
@@ -447,7 +447,7 @@ class BlenderMCPServer:
             # Capture stdout during execution, and return it as result
             capture_buffer = io.StringIO()
             with redirect_stdout(capture_buffer):
-                exec(code, namespace)  # noqa: S102
+                exec(code, namespace)  # noqa: B102 S102
 
             captured_output = capture_buffer.getvalue()
             return {"executed": True, "result": captured_output}

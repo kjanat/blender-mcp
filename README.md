@@ -30,7 +30,7 @@ no affiliation with this project. Use them at your own risk.**
 
 - For newcomers, you can go straight to Installation. For existing users, see
   the points below
-- Download the latest [`addon.py`](addon.py) file and replace the older one,
+- Download the latest [`blender-mcp.py`](blender-mcp.py) file and replace the older one,
   then add it to Blender
 - Delete the MCP server from Claude and add it back again, and you should be
   good to go!
@@ -48,7 +48,7 @@ no affiliation with this project. Use them at your own risk.**
 
 The system consists of two main components:
 
-1. **Blender Addon (`addon.py`)**: A Blender addon that creates a socket server
+1. **Blender Addon (`blender-mcp.py`)**: A Blender addon that creates a socket server
    within Blender to receive and execute commands
 2. **MCP Server (`src/blender_mcp/server.py`)**: A Python server that implements
    the Model Context Protocol and connects to the Blender addon
@@ -178,10 +178,10 @@ proceeding.
 
 ### Installing the Blender Addon
 
-1. Download the `addon.py` file from this repo
+1. Download the `blender-mcp.py` file from this repo
 1. Open Blender
 1. Go to Edit > Preferences > Add-ons
-1. Click "Install..." and select the `addon.py` file
+1. Click "Install..." and select the `blender-mcp.py` file
 1. Enable the addon by checking the box next to "Interface: Blender MCP"
 
 ## Usage
