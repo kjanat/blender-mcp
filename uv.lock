@@ -41,11 +41,6 @@ dependencies = [
     { name = "mcp", extra = ["cli"] },
 ]
 
-[package.optional-dependencies]
-addon = [
-    { name = "requests" },
-]
-
 [package.dev-dependencies]
 dev = [
     { name = "bpy" },
@@ -54,10 +49,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [
-    { name = "mcp", extras = ["cli"], specifier = ">=1.25.0" },
-    { name = "requests", marker = "extra == 'addon'", specifier = ">=2.32.5" },
-]
+requires-dist = [{ name = "mcp", extras = ["cli"], specifier = ">=1.25.0" }]
 provides-extras = ["addon"]
 
 [package.metadata.requires-dev]

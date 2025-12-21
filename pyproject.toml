@@ -11,7 +11,7 @@ dependencies = ["mcp[cli]>=1.25.0"]
 blender-mcp = "blender_mcp.server:main"
 
 [project.optional-dependencies]
-addon = ["requests>=2.32.5"]
+addon = []
 
 [dependency-groups]
 dev = [
