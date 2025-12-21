@@ -1,6 +1,11 @@
 """Type definitions for Blender MCP addon and server."""
 
-from typing import TypedDict, NotRequired, Literal, Any
+from typing import Any, Literal, TypedDict
+
+try:
+    from typing import NotRequired
+except ImportError:  # pragma: no cover
+    from typing_extensions import NotRequired
 
 
 # ============================================================================

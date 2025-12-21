@@ -7,7 +7,11 @@ import json
 import threading
 import socket
 import time
-import requests
+
+try:
+    import requests
+except ModuleNotFoundError:
+    requests = None  # type: ignore[assignment]
 import tempfile
 import traceback
 import os
@@ -17,7 +21,14 @@ import logging
 import os.path as osp
 from bpy.props import IntProperty  # type: ignore[import-not-found]
 import io
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+
+try:
+    # Python 3.11+
+    from datetime import UTC  # type: ignore[attr-defined]
+except ImportError:
+    # Blender versions shipping Python <3.11
+    UTC = timezone.utc  # type: ignore[assignment]
 import hashlib
 import hmac
 import base64
@@ -27,7 +38,7 @@ from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
-bl_info: dict[str, str | tuple[int, ...]] = {
+bl_info = {
     "name": "Blender MCP",
     "author": "BlenderMCP",
     "version": (2, 0),
@@ -42,8 +53,13 @@ RODIN_FREE_TRIAL_KEY = (
 )
 
 # Add User-Agent as required by Poly Haven API
-REQ_HEADERS = requests.utils.default_headers()
-REQ_HEADERS.update({"User-Agent": "blender-mcp"})
+if requests is not None:
+    REQ_HEADERS = requests.utils.default_headers()
+    REQ_HEADERS.update({"User-Agent": "blender-mcp"})
+else:
+    # Keep add-on importable even when Blender's Python environment
+    # doesn't have third-party dependencies installed.
+    REQ_HEADERS = {"User-Agent": "blender-mcp"}
 
 
 class BlenderMCPServer:
@@ -447,7 +463,7 @@ class BlenderMCPServer:
             # Capture stdout during execution, and return it as result
             capture_buffer = io.StringIO()
             with redirect_stdout(capture_buffer):
-                exec(code, namespace)  # noqa: B102 S102
+                exec(code, namespace)  # noqa: S102
 
             captured_output = capture_buffer.getvalue()
             return {"executed": True, "result": captured_output}
