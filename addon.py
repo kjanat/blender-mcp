@@ -21,12 +21,12 @@ import hmac
 import base64
 import os.path as osp
 from contextlib import redirect_stdout, suppress
-from typing import Any
+from typing import Any, Callable, Literal
 
 bl_info: dict[str, str | tuple[int, ...]] = {
     "name": "Blender MCP",
     "author": "BlenderMCP",
-    "version": (1, 2),
+    "version": (2, 0),
     "blender": (3, 0, 0),
     "location": "View3D > Sidebar > BlenderMCP",
     "description": "Connect Blender to Claude via MCP",
@@ -43,14 +43,14 @@ REQ_HEADERS.update({"User-Agent": "blender-mcp"})
 
 
 class BlenderMCPServer:
-    def __init__(self, host: str = "localhost", port: int = 9876):
-        self.host = host
-        self.port = port
-        self.running = False
+    def __init__(self, host: str = "localhost", port: int = 9876) -> None:
+        self.host: str = host
+        self.port: int = port
+        self.running: bool = False
         self.socket: socket.socket | None = None
-        self.server_thread = None
+        self.server_thread: threading.Thread | None = None
 
-    def start(self):
+    def start(self) -> None:
         if self.running:
             print("Server is already running")
             return
@@ -74,7 +74,7 @@ class BlenderMCPServer:
             print(f"Failed to start server: {str(e)}")
             self.stop()
 
-    def stop(self):
+    def stop(self) -> None:
         self.running = False
 
         # Close socket
@@ -96,7 +96,7 @@ class BlenderMCPServer:
 
         print("BlenderMCP server stopped")
 
-    def _server_loop(self):
+    def _server_loop(self) -> None:
         """Main server loop in a separate thread"""
         print("Server thread started")
         assert self.socket is not None
@@ -130,7 +130,7 @@ class BlenderMCPServer:
 
         print("Server thread stopped")
 
-    def _handle_client(self, client):
+    def _handle_client(self, client: socket.socket) -> None:
         """Handle connected client"""
         print("Client handler started")
         client.settimeout(None)  # No timeout
@@ -194,7 +194,7 @@ class BlenderMCPServer:
                 pass
             print("Client handler stopped")
 
-    def execute_command(self, command):
+    def execute_command(self, command: dict[str, Any]) -> dict[str, Any]:
         """Execute a command in the main Blender thread"""
         try:
             return self._execute_command_internal(command)
@@ -204,17 +204,17 @@ class BlenderMCPServer:
             traceback.print_exc()
             return {"status": "error", "message": str(e)}
 
-    def _execute_command_internal(self, command):
+    def _execute_command_internal(self, command: dict[str, Any]) -> dict[str, Any]:
         """Internal command execution with proper context"""
-        cmd_type = command.get("type")
-        params = command.get("params", {})
+        cmd_type = command.get("type")  # type: ignore[union-attr]
+        params = command.get("params", {})  # type: ignore[union-attr]
 
         # Add a handler for checking PolyHaven status
         if cmd_type == "get_polyhaven_status":
             return {"status": "success", "result": self.get_polyhaven_status()}
 
         # Base handlers that are always available
-        handlers = {
+        handlers: dict[str, Callable[..., Any]] = {
             "get_scene_info": self.get_scene_info,
             "get_object_info": self.get_object_info,
             "get_viewport_screenshot": self.get_viewport_screenshot,
@@ -261,7 +261,7 @@ class BlenderMCPServer:
             }
             handlers.update(hunyuan_handlers)
 
-        handler = handlers.get(cmd_type)
+        handler = handlers.get(cmd_type) if cmd_type else None  # type: ignore[arg-type]
         if handler:
             try:
                 print(f"Executing handler for {cmd_type}")
@@ -275,7 +275,7 @@ class BlenderMCPServer:
         else:
             return {"status": "error", "message": f"Unknown command type: {cmd_type}"}
 
-    def get_scene_info(self):
+    def get_scene_info(self) -> dict[str, Any]:
         """Get information about the current Blender scene"""
         try:
             print("Getting scene info...")
@@ -313,7 +313,8 @@ class BlenderMCPServer:
             return {"error": str(e)}
 
     @staticmethod
-    def _get_aabb(obj):
+    @staticmethod
+    def _get_aabb(obj: Any) -> list[list[float]]:
         """Returns the world-space axis-aligned bounding box (AABB) of an object."""
         if obj.type != "MESH":
             raise TypeError("Object must be a mesh")
@@ -332,7 +333,7 @@ class BlenderMCPServer:
 
         return [[*min_corner], [*max_corner]]
 
-    def get_object_info(self, name):
+    def get_object_info(self, name: str) -> dict[str, Any]:
         """Get detailed information about a specific object"""
         obj = bpy.data.objects.get(name)
         if not obj:
@@ -373,7 +374,9 @@ class BlenderMCPServer:
 
         return obj_info
 
-    def get_viewport_screenshot(self, max_size=800, filepath=None, format="png"):
+    def get_viewport_screenshot(
+        self, max_size: int = 800, filepath: str | None = None, format: str = "png"
+    ) -> dict[str, Any]:
         """
         Capture a screenshot of the current 3D viewport and save it to the specified path.
 
@@ -430,7 +433,7 @@ class BlenderMCPServer:
         except Exception as e:
             return {"error": str(e)}
 
-    def execute_code(self, code):
+    def execute_code(self, code: str) -> dict[str, Any]:
         """Execute arbitrary Blender Python code"""
         # This is powerful but potentially dangerous - use with caution
         try:
@@ -447,7 +450,9 @@ class BlenderMCPServer:
         except Exception as e:
             raise Exception(f"Code execution error: {str(e)}")
 
-    def get_polyhaven_categories(self, asset_type):
+    def get_polyhaven_categories(
+        self, asset_type: Literal["hdris", "textures", "models", "all"]
+    ) -> dict[str, Any]:
         """Get categories for a specific asset type from Polyhaven"""
         try:
             if asset_type not in ["hdris", "textures", "models", "all"]:
@@ -468,7 +473,11 @@ class BlenderMCPServer:
         except Exception as e:
             return {"error": str(e)}
 
-    def search_polyhaven_assets(self, asset_type=None, categories=None):
+    def search_polyhaven_assets(
+        self,
+        asset_type: Literal["hdris", "textures", "models", "all"] | None = None,
+        categories: str | None = None,
+    ) -> dict[str, Any]:
         """Search for assets from Polyhaven with optional filtering"""
         try:
             url = "https://api.polyhaven.com/assets"
@@ -508,8 +517,12 @@ class BlenderMCPServer:
             return {"error": str(e)}
 
     def download_polyhaven_asset(
-        self, asset_id, asset_type, resolution="1k", file_format=None
-    ):
+        self,
+        asset_id: str,
+        asset_type: Literal["hdris", "textures", "models"],
+        resolution: str = "1k",
+        file_format: str | None = None,
+    ) -> dict[str, Any]:
         try:
             # First get the files information
             files_response = requests.get(
@@ -911,7 +924,7 @@ class BlenderMCPServer:
         except Exception as e:
             return {"error": f"Failed to download asset: {str(e)}"}
 
-    def set_texture(self, object_name, texture_id):
+    def set_texture(self, object_name: str, texture_id: str) -> dict[str, Any]:
         """Apply a previously downloaded Polyhaven texture to an object by creating a new material"""
         try:
             # Get the object
@@ -1259,7 +1272,7 @@ class BlenderMCPServer:
             traceback.print_exc()
             return {"error": f"Failed to apply texture: {str(e)}"}
 
-    def get_polyhaven_status(self):
+    def get_polyhaven_status(self) -> dict[str, Any]:
         """Get the current status of PolyHaven integration"""
         enabled = bpy.context.scene.blendermcp_use_polyhaven
         if enabled:
@@ -1277,7 +1290,7 @@ class BlenderMCPServer:
             }
 
     # region Hyper3D
-    def get_hyper3d_status(self):
+    def get_hyper3d_status(self) -> dict[str, Any]:
         """Get the current status of Hyper3D Rodin integration"""
         enabled = bpy.context.scene.blendermcp_use_hyper3d
         if enabled:
@@ -1305,21 +1318,35 @@ class BlenderMCPServer:
                             3. Restart the connection to Claude""",
             }
 
-    def create_rodin_job(self, *args, **kwargs):
+    def create_rodin_job(
+        self,
+        text_prompt: str | None = None,
+        images: list[tuple[str, str]] | list[str] | None = None,
+        bbox_condition: list[int] | None = None,
+    ) -> dict[str, Any] | str:
+        """Dispatch Rodin job creation to the appropriate service."""
         match bpy.context.scene.blendermcp_hyper3d_mode:
             case "MAIN_SITE":
-                return self.create_rodin_job_main_site(*args, **kwargs)
+                return self.create_rodin_job_main_site(
+                    text_prompt=text_prompt,
+                    images=images,
+                    bbox_condition=bbox_condition,  # type: ignore[arg-type]
+                )
             case "FAL_AI":
-                return self.create_rodin_job_fal_ai(*args, **kwargs)
+                return self.create_rodin_job_fal_ai(
+                    text_prompt=text_prompt,
+                    images=images,
+                    bbox_condition=bbox_condition,
+                )
             case _:
                 return "Error: Unknown Hyper3D Rodin mode!"
 
     def create_rodin_job_main_site(
         self,
         text_prompt: str | None = None,
-        images: list[tuple[str, str]] | None = None,
+        images: list[Any] | None = None,
         bbox_condition: Any | None = None,
-    ):
+    ) -> dict[str, Any]:
         try:
             if images is None:
                 images = []
@@ -1353,7 +1380,7 @@ class BlenderMCPServer:
         text_prompt: str | None = None,
         images: Any | None = None,
         bbox_condition: Any | None = None,
-    ):
+    ) -> dict[str, Any]:
         try:
             req_data: dict[str, Any] = {
                 "tier": "Sketch",
@@ -1377,16 +1404,27 @@ class BlenderMCPServer:
         except Exception as e:
             return {"error": str(e)}
 
-    def poll_rodin_job_status(self, *args, **kwargs):
+    def poll_rodin_job_status(
+        self, subscription_key: str | None = None, request_id: str | None = None
+    ) -> dict[str, Any] | str:
+        """Dispatch job status polling to the appropriate service."""
         match bpy.context.scene.blendermcp_hyper3d_mode:
             case "MAIN_SITE":
-                return self.poll_rodin_job_status_main_site(*args, **kwargs)
+                return (
+                    self.poll_rodin_job_status_main_site(subscription_key)  # type: ignore[arg-type]
+                    if subscription_key
+                    else {"error": "subscription_key required for MAIN_SITE"}
+                )
             case "FAL_AI":
-                return self.poll_rodin_job_status_fal_ai(*args, **kwargs)
+                return (
+                    self.poll_rodin_job_status_fal_ai(request_id)  # type: ignore[arg-type]
+                    if request_id
+                    else {"error": "request_id required for FAL_AI"}
+                )
             case _:
                 return "Error: Unknown Hyper3D Rodin mode!"
 
-    def poll_rodin_job_status_main_site(self, subscription_key: str):
+    def poll_rodin_job_status_main_site(self, subscription_key: str) -> dict[str, Any]:
         """Call the job status API to get the job status"""
         response = requests.post(
             "https://hyperhuman.deemos.com/api/v2/status",
@@ -1400,7 +1438,7 @@ class BlenderMCPServer:
         data = response.json()
         return {"status_list": [i["status"] for i in data["jobs"]]}
 
-    def poll_rodin_job_status_fal_ai(self, request_id: str):
+    def poll_rodin_job_status_fal_ai(self, request_id: str) -> dict[str, Any]:
         """Call the job status API to get the job status"""
         response = requests.get(
             f"https://queue.fal.run/fal-ai/hyper3d/requests/{request_id}/status",
@@ -1412,7 +1450,7 @@ class BlenderMCPServer:
         return data
 
     @staticmethod
-    def _clean_imported_glb(filepath, mesh_name=None):
+    def _clean_imported_glb(filepath: str, mesh_name: str | None = None) -> Any:
         # Get the set of existing objects before import
         existing_objects = set(bpy.data.objects)
 
@@ -1486,16 +1524,32 @@ class BlenderMCPServer:
 
         return mesh_obj
 
-    def import_generated_asset(self, *args, **kwargs):
+    def import_generated_asset(
+        self,
+        task_uuid: str | None = None,
+        request_id: str | None = None,
+        name: str = "imported_model",
+    ) -> dict[str, Any] | str:
+        """Dispatch asset import to the appropriate service."""
         match bpy.context.scene.blendermcp_hyper3d_mode:
             case "MAIN_SITE":
-                return self.import_generated_asset_main_site(*args, **kwargs)
+                return (
+                    self.import_generated_asset_main_site(task_uuid, name)  # type: ignore[arg-type]
+                    if task_uuid
+                    else {"error": "task_uuid required for MAIN_SITE"}
+                )
             case "FAL_AI":
-                return self.import_generated_asset_fal_ai(*args, **kwargs)
+                return (
+                    self.import_generated_asset_fal_ai(request_id, name)  # type: ignore[arg-type]
+                    if request_id
+                    else {"error": "request_id required for FAL_AI"}
+                )
             case _:
                 return "Error: Unknown Hyper3D Rodin mode!"
 
-    def import_generated_asset_main_site(self, task_uuid: str, name: str):
+    def import_generated_asset_main_site(
+        self, task_uuid: str, name: str
+    ) -> dict[str, Any]:
         """Fetch the generated asset, import into blender"""
         response = requests.post(
             "https://hyperhuman.deemos.com/api/v2/download",
@@ -1563,7 +1617,9 @@ class BlenderMCPServer:
         except Exception as e:
             return {"succeed": False, "error": str(e)}
 
-    def import_generated_asset_fal_ai(self, request_id: str, name: str):
+    def import_generated_asset_fal_ai(
+        self, request_id: str, name: str
+    ) -> dict[str, Any]:
         """Fetch the generated asset, import into blender"""
         response = requests.get(
             f"https://queue.fal.run/fal-ai/hyper3d/requests/{request_id}",
@@ -1625,7 +1681,7 @@ class BlenderMCPServer:
     # endregion
 
     # region Sketchfab API
-    def get_sketchfab_status(self):
+    def get_sketchfab_status(self) -> dict[str, Any]:
         """Get the current status of Sketchfab integration"""
         enabled = bpy.context.scene.blendermcp_use_sketchfab
         api_key = bpy.context.scene.blendermcp_sketchfab_api_key
@@ -1689,8 +1745,12 @@ class BlenderMCPServer:
             }
 
     def search_sketchfab_models(
-        self, query, categories=None, count=20, downloadable=True
-    ):
+        self,
+        query: str,
+        categories: str | None = None,
+        count: int = 20,
+        downloadable: bool = True,
+    ) -> dict[str, Any]:
         """Search for models on Sketchfab based on query and optional filters"""
         try:
             api_key = bpy.context.scene.blendermcp_sketchfab_api_key
@@ -1754,7 +1814,7 @@ class BlenderMCPServer:
             traceback.print_exc()
             return {"error": str(e)}
 
-    def download_sketchfab_model(self, uid):
+    def download_sketchfab_model(self, uid: str) -> dict[str, Any]:
         """Download a model from Sketchfab by its UID"""
         try:
             api_key = bpy.context.scene.blendermcp_sketchfab_api_key
@@ -1897,7 +1957,7 @@ class BlenderMCPServer:
     # endregion
 
     # region Hunyuan3D
-    def get_hunyuan3d_status(self):
+    def get_hunyuan3d_status(self) -> dict[str, Any]:
         """Get the current status of Hunyuan3D integration"""
         enabled = bpy.context.scene.blendermcp_use_hunyuan3d
         hunyuan3d_mode = bpy.context.scene.blendermcp_hunyuan3d_mode
@@ -1950,14 +2010,14 @@ class BlenderMCPServer:
     def get_tencent_cloud_sign_headers(
         method: str,
         path: str,
-        headParams: dict,
-        data: dict,
+        headParams: dict[str, Any],
+        data: dict[str, Any],
         service: str,
         region: str,
         secret_id: str,
         secret_key: str,
         host: str | None = None,
-    ):
+    ) -> tuple[dict[str, str], str]:
         """Generate the signature header required for Tencent Cloud API requests headers"""
         # Generate timestamp
         timestamp = int(time.time())
@@ -2049,18 +2109,25 @@ class BlenderMCPServer:
 
         return headers, endpoint
 
-    def create_hunyuan_job(self, *args, **kwargs):
+    def create_hunyuan_job(
+        self, text_prompt: str | None = None, image: str | None = None
+    ) -> dict[str, Any] | str:
+        """Dispatch Hunyuan job creation to the appropriate service."""
         match bpy.context.scene.blendermcp_hunyuan3d_mode:
             case "OFFICIAL_API":
-                return self.create_hunyuan_job_main_site(*args, **kwargs)
+                return self.create_hunyuan_job_main_site(
+                    text_prompt=text_prompt, image=image
+                )
             case "LOCAL_API":
-                return self.create_hunyuan_job_local_site(*args, **kwargs)
+                return self.create_hunyuan_job_local_site(
+                    text_prompt=text_prompt, image=image
+                )
             case _:
                 return "Error: Unknown Hunyuan3D mode!"
 
     def create_hunyuan_job_main_site(
         self, text_prompt: str | None = None, image: str | None = None
-    ):
+    ) -> dict[str, Any]:
         try:
             secret_id = bpy.context.scene.blendermcp_hunyuan3d_secret_id
             secret_key = bpy.context.scene.blendermcp_hunyuan3d_secret_key
@@ -2126,7 +2193,7 @@ class BlenderMCPServer:
 
     def create_hunyuan_job_local_site(
         self, text_prompt: str | None = None, image: str | None = None
-    ):
+    ) -> dict[str, Any]:
         try:
             base_url = bpy.context.scene.blendermcp_hunyuan3d_api_url.rstrip("/")
             octree_resolution = bpy.context.scene.blendermcp_hunyuan3d_octree_resolution
@@ -2201,10 +2268,11 @@ class BlenderMCPServer:
             print(f"An error occurred: {e}")
             return {"error": str(e)}
 
-    def poll_hunyuan_job_status(self, *args, **kwargs):
-        return self.poll_hunyuan_job_status_ai(*args, **kwargs)
+    def poll_hunyuan_job_status(self, job_id: str) -> dict[str, Any]:
+        """Dispatch job status polling to the appropriate service."""
+        return self.poll_hunyuan_job_status_ai(job_id)
 
-    def poll_hunyuan_job_status_ai(self, job_id: str):
+    def poll_hunyuan_job_status_ai(self, job_id: str) -> dict[str, Any]:
         """Call the job status API to get the job status"""
         print(job_id)
         try:
@@ -2244,10 +2312,19 @@ class BlenderMCPServer:
         except Exception as e:
             return {"error": str(e)}
 
-    def import_generated_asset_hunyuan(self, *args, **kwargs):
-        return self.import_generated_asset_hunyuan_ai(*args, **kwargs)
+    def import_generated_asset_hunyuan(
+        self, name: str = "imported_model", zip_file_url: str | None = None
+    ) -> dict[str, Any]:
+        """Dispatch Hunyuan asset import to the appropriate service."""
+        return (
+            self.import_generated_asset_hunyuan_ai(name, zip_file_url)  # type: ignore[arg-type]
+            if zip_file_url
+            else {"error": "zip_file_url required"}
+        )
 
-    def import_generated_asset_hunyuan_ai(self, name: str, zip_file_url: str):
+    def import_generated_asset_hunyuan_ai(
+        self, name: str, zip_file_url: str
+    ) -> dict[str, Any]:
         if not zip_file_url:
             return {"error": "Zip file not found"}
 
@@ -2340,7 +2417,7 @@ class BLENDERMCP_PT_Panel(bpy.types.Panel):
     bl_region_type = "UI"
     bl_category = "BlenderMCP"
 
-    def draw(self, context):
+    def draw(self, context: Any) -> None:
         layout = self.layout
         scene = context.scene
 
@@ -2407,7 +2484,7 @@ class BLENDERMCP_OT_SetFreeTrialHyper3DAPIKey(bpy.types.Operator):
     bl_idname = "blendermcp.set_hyper3d_free_trial_api_key"
     bl_label = "Set Free Trial API Key"
 
-    def execute(self, context):
+    def execute(self, context: Any) -> set[str]:
         context.scene.blendermcp_hyper3d_api_key = RODIN_FREE_TRIAL_KEY
         context.scene.blendermcp_hyper3d_mode = "MAIN_SITE"
         self.report({"INFO"}, "API Key set successfully!")
@@ -2420,7 +2497,7 @@ class BLENDERMCP_OT_StartServer(bpy.types.Operator):
     bl_label = "Connect to Claude"
     bl_description = "Start the BlenderMCP server to connect with Claude"
 
-    def execute(self, context):
+    def execute(self, context: Any) -> set[str]:
         scene = context.scene
 
         # Create a new server instance
@@ -2443,7 +2520,7 @@ class BLENDERMCP_OT_StopServer(bpy.types.Operator):
     bl_label = "Stop the connection to Claude"
     bl_description = "Stop the connection to Claude"
 
-    def execute(self, context):
+    def execute(self, context: Any) -> set[str]:
         scene = context.scene
 
         # Stop the server if it exists
@@ -2457,7 +2534,7 @@ class BLENDERMCP_OT_StopServer(bpy.types.Operator):
 
 
 # Registration functions
-def register():
+def register() -> None:
     bpy.types.Scene.blendermcp_port = IntProperty(
         name="Port",
         description="Port for the BlenderMCP server",
@@ -2585,7 +2662,7 @@ def register():
     print("BlenderMCP addon registered")
 
 
-def unregister():
+def unregister() -> None:
     # Stop the server if it's running
     if hasattr(bpy.types, "blendermcp_server") and bpy.types.blendermcp_server:
         bpy.types.blendermcp_server.stop()

@@ -10,21 +10,6 @@ no affiliation with this project. Use them at your own risk.**
 
 [Full tutorial](https://www.youtube.com/watch?v=lCyQ717DuzQ)
 
-### Join the Community
-
-Give feedback, get inspired, and build on top of the MCP:
-[Discord](https://discord.gg/z5apgR8TFU)
-
-### Supporters
-
-[CodeRabbit](https://www.coderabbit.ai/)
-
-[Satish Goda](https://github.com/satishgoda)
-
-**All supporters:**
-
-[Support this project](https://github.com/sponsors/ahujasid)
-
 ## Release notes (1.4.0)
 
 - Added Hunyuan3D support

@@ -6,7 +6,7 @@ import logging
 import tempfile
 from dataclasses import dataclass
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Dict, Any
+from typing import AsyncIterator, Dict, Any, Sequence
 import os
 from pathlib import Path
 import base64
@@ -46,7 +46,7 @@ class BlenderConnection:
             self.sock = None
             return False
 
-    def disconnect(self):
+    def disconnect(self) -> None:
         """Disconnect from the Blender addon"""
         if self.sock:
             try:
@@ -56,7 +56,9 @@ class BlenderConnection:
             finally:
                 self.sock = None
 
-    def receive_full_response(self, sock, buffer_size=8192):
+    def receive_full_response(
+        self, sock: socket.socket, buffer_size: int = 8192
+    ) -> bytes:
         """Receive the complete response, potentially in multiple chunks"""
         chunks = []
         # Use a consistent timeout value that matches the addon's timeout
@@ -210,11 +212,11 @@ mcp = FastMCP("BlenderMCP", lifespan=server_lifespan)
 # Resource endpoints
 
 # Global connection for resources (since resources can't access context)
-_blender_connection = None
-_polyhaven_enabled = False  # Add this global variable
+_blender_connection: BlenderConnection | None = None
+_polyhaven_enabled: bool = False  # Add this global variable
 
 
-def get_blender_connection():
+def get_blender_connection() -> BlenderConnection:
     """Get or create a persistent Blender connection"""
     global _blender_connection, _polyhaven_enabled  # Add _polyhaven_enabled to globals
 
@@ -740,7 +742,7 @@ def download_sketchfab_model(ctx: Context, uid: str) -> str:
         return f"Error downloading Sketchfab model: {str(e)}"
 
 
-def _process_bbox(original_bbox: list[float] | list[int] | None) -> list[int] | None:
+def _process_bbox(original_bbox: Sequence[float | int] | None) -> list[int] | None:
     if original_bbox is None:
         return None
     if all(isinstance(i, int) for i in original_bbox):
@@ -1147,7 +1149,7 @@ def asset_creation_strategy() -> str:
 # Main execution
 
 
-def main():
+def main() -> None:
     """Run the MCP server"""
     mcp.run()
 
