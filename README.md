@@ -8,7 +8,10 @@ manipulation.
 **We have no official website. Any website you see online is unofficial and has
 no affiliation with this project. Use them at your own risk.**
 
-[Full tutorial](https://www.youtube.com/watch?v=lCyQ717DuzQ)
+[![BlenderMCP Demo][Full Tutorial:thumb]][Full Tutorial]
+
+[Full Tutorial:thumb]: https://img.youtube.com/vi/lCyQ717DuzQ/maxresdefault.jpg
+[Full Tutorial]: https://www.youtube.com/watch?v=lCyQ717DuzQ "Create 3D with Claude AI with Blender MCP - Full 26-min Tutorial"
 
 ## Release notes (1.4.0)
 
@@ -27,8 +30,8 @@ no affiliation with this project. Use them at your own risk.**
 
 - For newcomers, you can go straight to Installation. For existing users, see
   the points below
-- Download the latest addon.py file and replace the older one, then add it to
-  Blender
+- Download the latest [`addon.py`](addon.py) file and replace the older one,
+  then add it to Blender
 - Delete the MCP server from Claude and add it back again, and you should be
   good to go!
 
@@ -55,8 +58,11 @@ The system consists of two main components:
 ### Prerequisites
 
 - Blender 3.0 or newer
-- Python 3.10 or newer
+- Python 3.11 or newer
 - uv package manager:
+
+<details>
+<summary>install details</summary>
 
 **If you're on Mac, please install uv as**
 
@@ -82,6 +88,8 @@ $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 Otherwise installation instructions are on their website:
 [Install uv](https://docs.astral.sh/uv/getting-started/installation/)
 
+</details>
+
 **⚠️ Do not proceed before installing UV**
 
 ### Environment Variables
@@ -101,22 +109,22 @@ export BLENDER_PORT=9876
 
 ### Claude for Desktop Integration
 
-[Watch the setup instruction video](https://www.youtube.com/watch?v=neoK_WMq92g)
-(Assuming you have already installed uv)
+![Setup instruction video][Setup instruction video:thumb]][Setup instruction video]
+
+[Setup instruction video]: https://www.youtube.com/watch?v=neoK_WMq92g "Blender MCP: Setup Instructions"
+[Setup instruction video:thumb]: https://img.youtube.com/vi/neoK_WMq92g/maxresdefault.jpg
 
 Go to Claude > Settings > Developer > Edit Config > claude_desktop_config.json
 to include the following:
 
 ```json
 {
-    "mcpServers": {
-        "blender": {
-            "command": "uvx",
-            "args": [
-                "blender-mcp"
-            ]
-        }
+  "mcpServers": {
+    "blender": {
+      "command": "uvx",
+      "args": ["blender-mcp"]
     }
+  }
 }
 ```
 
@@ -132,14 +140,12 @@ For Mac users, go to Settings > MCP and paste the following
 
 ```json
 {
-    "mcpServers": {
-        "blender": {
-            "command": "uvx",
-            "args": [
-                "blender-mcp"
-            ]
-        }
+  "mcpServers": {
+    "blender": {
+      "command": "uvx",
+      "args": ["blender-mcp"]
     }
+  }
 }
 ```
 
@@ -148,16 +154,12 @@ following settings:
 
 ```json
 {
-    "mcpServers": {
-        "blender": {
-            "command": "cmd",
-            "args": [
-                "/c",
-                "uvx",
-                "blender-mcp"
-            ]
-        }
+  "mcpServers": {
+    "blender": {
+      "command": "cmd",
+      "args": ["/c", "uvx", "blender-mcp"]
     }
+  }
 }
 ```
 
@@ -267,3 +269,5 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 This is a third-party integration and not made by Blender. Made by
 [Siddharth](https://x.com/sidahuj)
+
+<!-- markdownlint-configure-file { "MD013": false, "MD033": false, "MD036": false } -->

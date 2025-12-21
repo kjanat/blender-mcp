@@ -6,7 +6,8 @@ import logging
 import tempfile
 from dataclasses import dataclass
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Dict, Any, Sequence
+from typing import Any
+from collections.abc import AsyncIterator, Sequence
 import os
 from pathlib import Path
 import base64
@@ -90,14 +91,14 @@ class BlenderConnection:
                     except json.JSONDecodeError:
                         # Incomplete JSON, continue receiving
                         continue
-                except socket.timeout:
+                except TimeoutError:
                     # If we hit a timeout during receiving, break the loop and try to use what we have
                     logger.warning("Socket timeout during chunked receive")
                     break
                 except (ConnectionError, BrokenPipeError, ConnectionResetError) as e:
                     logger.error(f"Socket connection error during receive: {str(e)}")
                     raise  # Re-raise to be handled by the caller
-        except socket.timeout:
+        except TimeoutError:
             logger.warning("Socket timeout during chunked receive")
         except Exception as e:
             logger.error(f"Error during receive: {str(e)}")
@@ -112,15 +113,15 @@ class BlenderConnection:
                 # Try to parse what we have
                 json.loads(data.decode("utf-8"))
                 return data
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as e:
                 # If we can't parse it, it's incomplete
-                raise Exception("Incomplete JSON response received")
+                raise Exception("Incomplete JSON response received") from e
         else:
             raise Exception("No data received")
 
     def send_command(
-        self, command_type: str, params: Dict[str, Any] | None = None
-    ) -> Dict[str, Any]:
+        self, command_type: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Send a command to Blender and return the response"""
         if not self.sock and not self.connect():
             raise ConnectionError("Not connected to Blender")
@@ -132,7 +133,8 @@ class BlenderConnection:
             logger.info(f"Sending command: {command_type} with params: {params}")
 
             # Send the command
-            assert self.sock is not None
+            if self.sock is None:
+                raise Exception("Socket is not initialized")
             self.sock.sendall(json.dumps(command).encode("utf-8"))
             logger.info("Command sent, waiting for response...")
 
@@ -151,30 +153,30 @@ class BlenderConnection:
                 raise Exception(response.get("message", "Unknown error from Blender"))
 
             return response.get("result", {})
-        except socket.timeout:
+        except TimeoutError as e:
             logger.error("Socket timeout while waiting for response from Blender")
             # Don't try to reconnect here - let the get_blender_connection handle reconnection
             # Just invalidate the current socket so it will be recreated next time
             self.sock = None
             raise Exception(
                 "Timeout waiting for Blender response - try simplifying your request"
-            )
+            ) from e
         except (ConnectionError, BrokenPipeError, ConnectionResetError) as e:
             logger.error(f"Socket connection error: {str(e)}")
             self.sock = None
-            raise Exception(f"Connection to Blender lost: {str(e)}")
+            raise Exception(f"Connection to Blender lost: {str(e)}") from e
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON response from Blender: {str(e)}")
-            raise Exception(f"Invalid response from Blender: {str(e)}")
+            raise Exception(f"Invalid response from Blender: {str(e)}") from e
         except Exception as e:
             logger.error(f"Error communicating with Blender: {str(e)}")
             # Don't try to reconnect here - let the get_blender_connection handle reconnection
             self.sock = None
-            raise Exception(f"Communication error with Blender: {str(e)}")
+            raise Exception(f"Communication error with Blender: {str(e)}") from e
 
 
 @asynccontextmanager
-async def server_lifespan(server: FastMCP) -> AsyncIterator[Dict[str, Any]]:
+async def server_lifespan(server: FastMCP) -> AsyncIterator[dict[str, Any]]:
     """Manage server startup and shutdown lifecycle"""
     # We don't need to create a connection here since we're using the global connection
     # for resources and tools
@@ -233,8 +235,8 @@ def get_blender_connection() -> BlenderConnection:
             logger.warning(f"Existing connection is no longer valid: {str(e)}")
             try:
                 _blender_connection.disconnect()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to disconnect existing connection: {str(e)}")
             _blender_connection = None
 
     # Create a new connection if needed
@@ -325,7 +327,7 @@ def get_viewport_screenshot(ctx: Context, max_size: int = 800) -> Image:
 
     except Exception as e:
         logger.error(f"Error capturing screenshot: {str(e)}")
-        raise Exception(f"Screenshot failed: {str(e)}")
+        raise Exception(f"Screenshot failed: {str(e)}") from e
 
 
 @mcp.tool()
@@ -783,12 +785,10 @@ def generate_hyper3d_model_via_text(
         )
         succeed = result.get("submit_time", False)
         if succeed:
-            return json.dumps(
-                {
-                    "task_uuid": result["uuid"],
-                    "subscription_key": result["jobs"]["subscription_key"],
-                }
-            )
+            return json.dumps({
+                "task_uuid": result["uuid"],
+                "subscription_key": result["jobs"]["subscription_key"],
+            })
         else:
             return json.dumps(result)
     except Exception as e:
@@ -828,12 +828,10 @@ def generate_hyper3d_model_via_images(
         images = []
         for path in input_image_paths:
             with open(path, "rb") as f:
-                images.append(
-                    (
-                        Path(path).suffix,
-                        base64.b64encode(f.read()).decode("ascii"),
-                    )
-                )
+                images.append((
+                    Path(path).suffix,
+                    base64.b64encode(f.read()).decode("ascii"),
+                ))
     elif input_image_urls is not None:
         if not all(urlparse(i) for i in input_image_urls):
             return "Error: not all image URLs are valid!"
@@ -850,12 +848,10 @@ def generate_hyper3d_model_via_images(
         )
         succeed = result.get("submit_time", False)
         if succeed:
-            return json.dumps(
-                {
-                    "task_uuid": result["uuid"],
-                    "subscription_key": result["jobs"]["subscription_key"],
-                }
-            )
+            return json.dumps({
+                "task_uuid": result["uuid"],
+                "subscription_key": result["jobs"]["subscription_key"],
+            })
         else:
             return json.dumps(result)
     except Exception as e:
@@ -987,11 +983,9 @@ def generate_hunyuan3d_model(
         if "JobId" in result.get("Response", {}):
             job_id = result["Response"]["JobId"]
             formatted_job_id = f"job_{job_id}"
-            return json.dumps(
-                {
-                    "job_id": formatted_job_id,
-                }
-            )
+            return json.dumps({
+                "job_id": formatted_job_id,
+            })
         return json.dumps(result)
     except Exception as e:
         logger.error(f"Error generating Hunyuan3D task: {str(e)}")
